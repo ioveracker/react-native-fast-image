@@ -11,6 +11,7 @@ import {
     StyleProp,
     TransformsStyle,
     AccessibilityProps,
+    Platform
 } from 'react-native'
 
 const FastImageViewNativeModule = NativeModules.FastImageView
@@ -144,7 +145,7 @@ function FastImageBase({
     forwardedRef,
     ...props
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
-    if (fallback) {
+    if (fallback || Platform.OS === 'web') {
         const cleanedSource = { ...(source as any) }
         delete cleanedSource.cache
         const resolvedSource = Image.resolveAssetSource(cleanedSource)
@@ -214,8 +215,13 @@ FastImage.cacheControl = cacheControl
 
 FastImage.priority = priority
 
-FastImage.preload = (sources: Source[]) =>
+FastImage.preload = (sources: Source[]) => {
+    if (Platform.OS === 'web') {
+        return;
+    }
+
     FastImageViewNativeModule.preload(sources)
+}
 
 const styles = StyleSheet.create({
     imageContainer: {
@@ -223,19 +229,24 @@ const styles = StyleSheet.create({
     },
 })
 
-// Types of requireNativeComponent are not correct.
-const FastImageView = (requireNativeComponent as any)(
-    'FastImageView',
-    FastImage,
-    {
-        nativeOnly: {
-            onFastImageLoadStart: true,
-            onFastImageProgress: true,
-            onFastImageLoad: true,
-            onFastImageError: true,
-            onFastImageLoadEnd: true,
+let FastImageView: any;
+if (Platform.OS === 'web') {
+    FastImageView = Image;
+} else {
+    // Types of requireNativeComponent are not correct.
+    FastImageView = (requireNativeComponent as any)(
+        'FastImageView',
+        FastImage,
+        {
+            nativeOnly: {
+                onFastImageLoadStart: true,
+                onFastImageProgress: true,
+                onFastImageLoad: true,
+                onFastImageError: true,
+                onFastImageLoadEnd: true,
+            },
         },
-    },
-)
+    )
+}
 
 export default FastImage
